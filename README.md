@@ -121,4 +121,4 @@ flashcard-app/
 
 ## Author
 Priyanshu Galani  
-[GitHub](https://github.com/ALFREDTASK)
+[GitHub](https://github.com/priyanshu6091)
