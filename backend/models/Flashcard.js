@@ -26,16 +26,29 @@ const flashcardSchema = new mongoose.Schema({
   reviewHistory: [{
     date: {
       type: Date,
-      default: Date.now,
+      required: true,
     },
-    wasCorrect: Boolean,
-    fromBox: Number,
-    toBox: Number,
+    wasCorrect: {
+      type: Boolean,
+      required: true
+    },
+    fromBox: {
+      type: Number,
+      required: true
+    },
+    toBox: {
+      type: Number,
+      required: true
+    },
   }],
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
+
+// Add indexes for performance
+flashcardSchema.index({ nextReviewDate: 1 });
+flashcardSchema.index({ boxNumber: 1 });
 
 module.exports = mongoose.model('Flashcard', flashcardSchema);

@@ -38,26 +38,31 @@ router.post('/register', async (req, res) => {
 
 // Signup
 router.post('/signup', async (req, res) => {
-  const { email, password } = req.body;
   try {
-    // Check if user already exists
+    const { email, password, name } = req.body; // Added name parameter
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const newUser = await User.create({ email, password, name });
 
-    // Create new user
-    const newUser = await User.create({ email, password: hashedPassword });
+    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
+      expiresIn: '7d' // Standardized token expiration
+    });
 
-    // Generate JWT token
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-    res.status(201).json({ token });
+    res.status(201).json({
+      token,
+      user: {
+        id: newUser._id,
+        email: newUser.email,
+        name: newUser.name,
+        preferences: newUser.preferences
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Something went wrong' });
+    res.status(400).json({ message: error.message });
   }
 });
 

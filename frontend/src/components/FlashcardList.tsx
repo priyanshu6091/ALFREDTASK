@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Flashcard from './Flashcard';
 
@@ -9,6 +10,12 @@ interface IFlashcard {
   boxNumber: number;
   nextReviewDate: string;
   lastReviewed: string | null;
+  reviewHistory: Array<{
+    date: string;
+    wasCorrect: boolean;
+    fromBox: number;
+    toBox: number;
+  }>;
 }
 
 interface BoxStats {
@@ -32,6 +39,8 @@ const FlashcardList: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [boxStats, setBoxStats] = useState<BoxStats>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchFlashcardsAndStats();
@@ -40,6 +49,7 @@ const FlashcardList: React.FC = () => {
   const fetchFlashcardsAndStats = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [cardsResponse, statsResponse] = await Promise.all([
         axios.get('http://localhost:5000/api/flashcards?due=true'),
         axios.get('http://localhost:5000/api/flashcards/stats')
@@ -47,9 +57,11 @@ const FlashcardList: React.FC = () => {
       
       setFlashcards(cardsResponse.data);
       setBoxStats(statsResponse.data);
+      setCurrentIndex(0);
       setLoading(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load flashcards. Please try again later.');
       setLoading(false);
     }
   };
@@ -57,21 +69,15 @@ const FlashcardList: React.FC = () => {
   const handleAnswer = async (correct: boolean) => {
     if (flashcards.length === 0) return;
 
-    const currentCard = flashcards[currentIndex];
     try {
-      await axios.put(`http://localhost:5000/api/flashcards/${currentCard._id}`, {
+      await axios.put(`http://localhost:5000/api/flashcards/${flashcards[currentIndex]._id}`, {
         isCorrect: correct
       });
       
-      // Move to next card or refresh the list if we're at the end
-      if (currentIndex < flashcards.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        await fetchFlashcardsAndStats();
-        setCurrentIndex(0);
-      }
+      await fetchFlashcardsAndStats();
     } catch (error) {
       console.error('Error updating flashcard:', error);
+      setError('Failed to update flashcard. Please try again.');
     }
   };
 
@@ -83,9 +89,22 @@ const FlashcardList: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-xl text-red-600">{error}</div>
+        <button
+          className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+          onClick={fetchFlashcardsAndStats}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Box Statistics */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Leitner System Boxes</h2>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -95,7 +114,7 @@ const FlashcardList: React.FC = () => {
               className="bg-white rounded-lg shadow p-4 border-l-4"
               style={{
                 borderLeftColor: `hsl(${(boxNum - 1) * 30}, 70%, 50%)`,
-                color: '#000' // Set a fixed text color
+                color: '#000'
               }}
             >
               <h3 className="text-lg font-medium">Box {boxNum}</h3>
@@ -106,28 +125,34 @@ const FlashcardList: React.FC = () => {
         </div>
       </div>
 
-      {/* Current Study Session */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Study Session</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {flashcards.length > 0 
+            ? `Study Session (${currentIndex + 1}/${flashcards.length})` 
+            : 'No Cards Due'
+          }
+        </h2>
         {flashcards.length > 0 ? (
-          <div>
-            <div className="text-sm text-gray-600 mb-4">
-              Card {currentIndex + 1} of {flashcards.length} due today
-            </div>
-            <Flashcard
-              question={flashcards[currentIndex].question}
-              answer={flashcards[currentIndex].answer}
-              onAnswer={handleAnswer}
-            />
-          </div>
+          <Flashcard
+            question={flashcards[currentIndex].question}
+            answer={flashcards[currentIndex].answer}
+            reviewHistory={flashcards[currentIndex].reviewHistory}
+            onAnswer={handleAnswer}
+          />
         ) : (
           <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
             <p className="text-xl text-green-800">
               Great job! No cards due for review.
             </p>
             <p className="text-sm text-green-600 mt-2">
-              Check back later for more cards to review.
+              Add new cards or check back later.
             </p>
+            <button
+              className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+              onClick={() => navigate('/add-flashcard')}
+            >
+              Add New Card
+            </button>
           </div>
         )}
       </div>

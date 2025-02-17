@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import FlashcardList from './components/FlashcardList';
 import AddFlashcard from './components/AddFlashcard';
 import Login from './components/Login';
@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const AppContent: React.FC = () => {
   const [showAdd, setShowAdd] = useState(false);
   const { darkMode, toggleDarkMode } = useTheme();
+  const navigate = useNavigate(); // Add this line
 
   return (
     <div className={`min-h-screen transition-colors duration-200 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
@@ -28,10 +29,10 @@ const AppContent: React.FC = () => {
               </motion.button>
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setShowAdd(!showAdd)}
+                onClick={() => navigate('/add-flashcard')} // Update this line
                 className={`px-4 py-2 rounded ${darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white transition`}
               >
-                {showAdd ? 'Study Cards' : 'Add New Card'}
+                Add New Card
               </motion.button>
             </div>
           </div>
@@ -46,11 +47,7 @@ const AppContent: React.FC = () => {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {showAdd ? (
-              <AddFlashcard onFlashcardAdded={() => setShowAdd(false)} />
-            ) : (
-              <FlashcardList />
-            )}
+            <FlashcardList />
           </motion.div>
         </AnimatePresence>
       </main>
@@ -63,7 +60,22 @@ const App: React.FC = () => {
     <ThemeProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<AppContent />} />
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <AppContent />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/add-flashcard"
+            element={
+              <PrivateRoute>
+                <AddFlashcard />
+              </PrivateRoute>
+            }
+          />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
         </Routes>

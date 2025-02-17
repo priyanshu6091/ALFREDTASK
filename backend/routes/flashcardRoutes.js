@@ -2,64 +2,48 @@ const express = require('express');
 const router = express.Router();
 const Flashcard = require('../models/Flashcard');
 
-// Leitner System intervals (in days)
 const BOX_INTERVALS = {
-  1: 1,    // Review daily
-  2: 2,    // Review every 2 days
-  3: 4,    // Review every 4 days
-  4: 8,    // Review every 8 days
-  5: 16    // Review every 16 days
+  1: 1,
+  2: 2,
+  3: 4,
+  4: 8,
+  5: 16
 };
 
-// Get all flashcards (with optional due date filter)
 router.get('/flashcards', async (req, res) => {
   try {
     const query = req.query.due === 'true' 
       ? { nextReviewDate: { $lte: new Date() } }
       : {};
-    const flashcards = await Flashcard.find(query);
+    const flashcards = await Flashcard.find(query)
+      .sort({ nextReviewDate: 1 });
     res.json(flashcards);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Get flashcard statistics
 router.get('/flashcards/stats', async (req, res) => {
   try {
     const stats = await Flashcard.aggregate([
-      {
-        $group: {
-          _id: '$boxNumber',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { _id: 1 }
-      }
+      { $group: { _id: '$boxNumber', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
     ]);
-    
-    // Format stats into an object
-    const boxStats = {};
-    stats.forEach(stat => {
-      boxStats[stat._id] = stat.count;
-    });
-    
-    res.json(boxStats);
+    res.json(stats.reduce((acc, stat) => ({
+      ...acc,
+      [stat._id]: stat.count
+    }), {}));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Add new flashcard
 router.post('/flashcards', async (req, res) => {
   const flashcard = new Flashcard({
     question: req.body.question,
     answer: req.body.answer,
-    boxNumber: 1, // All new cards start in Box 1
-    nextReviewDate: new Date() // Due immediately
+    reviewHistory: []
   });
-
   try {
     const newFlashcard = await flashcard.save();
     res.status(201).json(newFlashcard);
@@ -68,50 +52,43 @@ router.post('/flashcards', async (req, res) => {
   }
 });
 
-// Update flashcard (handle review)
 router.put('/flashcards/:id', async (req, res) => {
   try {
     const flashcard = await Flashcard.findById(req.params.id);
-    if (!flashcard) {
-      return res.status(404).json({ message: 'Flashcard not found' });
-    }
+    if (!flashcard) return res.status(404).json({ message: 'Not found' });
 
     const { isCorrect } = req.body;
-    
-    // Update box number based on answer
+    const originalBox = flashcard.boxNumber;
+
     if (isCorrect) {
-      // Move to next box if answered correctly (max box is 5)
       flashcard.boxNumber = Math.min(flashcard.boxNumber + 1, 5);
     } else {
-      // Reset to Box 1 if answered incorrectly
       flashcard.boxNumber = 1;
     }
 
-    // Calculate next review date based on box number
-    const intervalDays = BOX_INTERVALS[flashcard.boxNumber];
-    const nextReview = new Date();
-    nextReview.setDate(nextReview.getDate() + intervalDays);
-    flashcard.nextReviewDate = nextReview;
-
-    // Update review history
+    const interval = BOX_INTERVALS[flashcard.boxNumber];
+    flashcard.nextReviewDate = new Date(Date.now() + interval * 86400000);
     flashcard.lastReviewed = new Date();
-    
-    const updatedFlashcard = await flashcard.save();
-    res.json(updatedFlashcard);
+    flashcard.reviewHistory.push({
+      date: flashcard.lastReviewed,
+      wasCorrect,
+      fromBox: originalBox,
+      toBox: flashcard.boxNumber
+    });
+
+    const updated = await flashcard.save();
+    res.json(updated);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
-// Delete flashcard
 router.delete('/flashcards/:id', async (req, res) => {
   try {
     const flashcard = await Flashcard.findById(req.params.id);
-    if (!flashcard) {
-      return res.status(404).json({ message: 'Flashcard not found' });
-    }
+    if (!flashcard) return res.status(404).json({ message: 'Not found' });
     await flashcard.deleteOne();
-    res.json({ message: 'Flashcard deleted' });
+    res.json({ message: 'Deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

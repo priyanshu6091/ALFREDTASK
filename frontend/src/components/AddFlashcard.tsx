@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 interface AddFlashcardProps {
-  onFlashcardAdded: () => void;
+  onFlashcardAdded?: () => void;
 }
 
 const AddFlashcard: React.FC<AddFlashcardProps> = ({ onFlashcardAdded }) => {
@@ -20,7 +20,7 @@ const AddFlashcard: React.FC<AddFlashcardProps> = ({ onFlashcardAdded }) => {
       
       setQuestion('');
       setAnswer('');
-      onFlashcardAdded();
+      if (onFlashcardAdded) onFlashcardAdded();
     } catch (error) {
       console.error('Error adding flashcard:', error);
     }
