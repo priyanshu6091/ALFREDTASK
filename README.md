@@ -36,7 +36,7 @@ This is a full-stack web application for managing flashcards using the Leitner S
 ### Installation
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/flashcard-app.git
+   git clone https://github.com/priyanshu6091/ALFREDTASK.git
    ```
 2. **Install dependencies**:
    ```bash
@@ -120,5 +120,5 @@ flashcard-app/
 5. Submit a pull request
 
 ## Author
-Your Name  
-[Your GitHub Profile](https://github.com/your-username)
+Priyanshu Galani  
+[Your GitHub Profile](https://github.com/ALFREDTASK)
